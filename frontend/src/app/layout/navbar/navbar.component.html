@@ -1,0 +1,69 @@
+<header class="navbar-header">
+  <div class="navbar-container">
+    <!-- Brand / Logo (Swiss Minimalist Mark) -->
+    <a routerLink="/" class="navbar-brand">
+      <div class="brand-geometric-mark">
+        <div class="crescent-outer">
+          <div class="crescent-inner"></div>
+        </div>
+      </div>
+      <span class="brand-title">HÁZTARTÁS</span>
+    </a>
+
+    <!-- Minimalist Tracked Navigation Links -->
+    <nav class="nav-links">
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-item">
+        ÁTTEKINTÉS
+      </a>
+
+      <a routerLink="/calculator" routerLinkActive="active" class="nav-item">
+        NAPI KERET
+      </a>
+
+      <a routerLink="/incomes" routerLinkActive="active" class="nav-item">
+        BEVÉTELEK
+      </a>
+
+      <a routerLink="/expenses" routerLinkActive="active" class="nav-item">
+        KIADÁSOK
+      </a>
+
+      <a routerLink="/simulator" routerLinkActive="active" class="nav-item">
+        SZIMULÁCIÓ
+      </a>
+    </nav>
+
+    <!-- Status & Theme Toggle -->
+    <div class="navbar-actions">
+      <!-- Minimalist Theme Switcher Button -->
+      <button class="theme-toggle-btn" (click)="toggleTheme()" [title]="isDarkMode() ? 'Váltás világos módra' : 'Váltás éjszakai módra'">
+        @if (isDarkMode()) {
+          <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+          <span>NAPPALI</span>
+        } @else {
+          <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+          <span>ÉJJELI</span>
+        }
+      </button>
+
+      <div class="status-indicator">
+        <span class="status-dot" [class.connected]="apiService.isConnected()"></span>
+        <span class="status-text">{{ apiService.isConnected() ? 'DB ONLINE' : 'OFFLINE' }}</span>
+      </div>
+
+      <button class="mobile-toggle" (click)="toggleMobileMenu()" aria-label="Menü">
+        <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+      </button>
+    </div>
+  </div>
+
+  @if (isMobileMenuOpen()) {
+    <div class="mobile-nav">
+      <a routerLink="/" (click)="closeMobileMenu()" class="mobile-nav-item">ÁTTEKINTÉS</a>
+      <a routerLink="/calculator" (click)="closeMobileMenu()" class="mobile-nav-item">NAPI KERET</a>
+      <a routerLink="/incomes" (click)="closeMobileMenu()" class="mobile-nav-item">BEVÉTELEK</a>
+      <a routerLink="/expenses" (click)="closeMobileMenu()" class="mobile-nav-item">KIADÁSOK</a>
+      <a routerLink="/simulator" (click)="closeMobileMenu()" class="mobile-nav-item">SZIMULÁCIÓ</a>
+    </div>
+  }
+</header>

@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: haztartas_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: haztartas_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - haztartas-net
+
+  adminer:
+    image: adminer:latest
+    container_name: haztartas_adminer
+    restart: always
+    ports:
+      - "8081:8080"
+    depends_on:
+      - postgres
+    networks:
+      - haztartas-net
+
+networks:
+  haztartas-net:
+    driver: bridge
+
+volumes:
+  postgres_data:

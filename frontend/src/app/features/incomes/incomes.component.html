@@ -1,0 +1,161 @@
+<div class="app-container">
+  <div class="page-header-flex">
+    <div>
+      <h1 class="page-title">Bevételek</h1>
+      <p class="page-subtitle">Rendszeres munkabérek, egyetemi ösztöndíjak, diákmunkák és eseti bevételek</p>
+    </div>
+    <button class="btn btn-primary" (click)="openNewModal()">
+      <span>+ Új Bevétel</span>
+    </button>
+  </div>
+
+  <!-- Summary Banner -->
+  <div class="card summary-banner">
+    <div class="summary-item">
+      <span class="summary-label">Havi Összes Rögzített Bevétel</span>
+      <span class="summary-val mono">{{ totalIncomeAmount | huf }}</span>
+    </div>
+    <div class="summary-item">
+      <span class="summary-label">Rögzített Tételek Száma</span>
+      <span class="summary-val mono">{{ apiService.incomes().length }} tétel</span>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="card table-card">
+    <div class="data-table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Megnevezés</th>
+            <th>Kategória</th>
+            <th>Időtartam / Gyakoriság</th>
+            <th>Dátum</th>
+            <th style="text-align: right;">Összeg</th>
+            <th style="text-align: center;">Művelet</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (inc of apiService.incomes(); track inc.id) {
+            <tr>
+              <td>
+                <div class="item-title-flex">
+                  <strong>{{ inc.title }}</strong>
+                </div>
+                @if (inc.description) {
+                  <span class="item-desc">{{ inc.description }}</span>
+                }
+              </td>
+              <td>
+                <span class="badge">{{ inc.categoryName || 'Általános' }}</span>
+              </td>
+              <td>
+                @if (!inc.recurring || inc.frequency === 'ONETIME' || inc.durationMonths === 1) {
+                  <span class="badge">EGYSZERI (1x)</span>
+                } @else if (inc.durationMonths && inc.durationMonths > 1) {
+                  <span class="badge badge-dark">{{ inc.durationMonths }} HÓNAPIG</span>
+                } @else {
+                  <span class="badge badge-dark">ÁLLANDÓ</span>
+                }
+              </td>
+              <td class="mono" style="font-size: 0.8rem;">{{ inc.receivedDate }}</td>
+              <td class="mono" style="text-align: right; font-weight: 800; font-size: 1.05rem;">+{{ inc.amount | huf }}</td>
+              <td style="text-align: center;">
+                <button class="btn btn-danger btn-sm" (click)="deleteIncome(inc.id)" title="Törlés">
+                  Törlés
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6" class="empty-state">
+                <p>Még nincs rögzített bevétel.</p>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal: Új Bevétel -->
+  @if (isModalOpen()) {
+    <div class="modal-backdrop" (click)="closeModal()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>Új Bevétel Rögzítése</h3>
+          <button class="btn btn-secondary btn-sm" (click)="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Megnevezés *</label>
+            <input type="text" class="form-control" [(ngModel)]="currentIncome.title" placeholder="pl. Diákmunka, Egyetemi ösztöndíj">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Összeg (Ft) *</label>
+            <input type="number" class="form-control" [(ngModel)]="currentIncome.amount" placeholder="180000">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Kategória</label>
+            <select class="form-control" [(ngModel)]="currentIncome.categoryId">
+              @for (cat of apiService.categories(); track cat.id) {
+                @if (cat.type === 'INCOME') {
+                  <option [value]="cat.id">{{ cat.name }}</option>
+                }
+              }
+            </select>
+          </div>
+
+          <!-- Időtartam / Gyakoriság Választó -->
+          <div class="form-group">
+            <label class="form-label">Bevétel Időtartama</label>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-top: 0.25rem;">
+              <button type="button" class="btn btn-sm" [class.btn-primary]="durationMode === 'ONETIME'" [class.btn-secondary]="durationMode !== 'ONETIME'" (click)="setDurationMode('ONETIME')">
+                Egyszeri (1x)
+              </button>
+              <button type="button" class="btn btn-sm" [class.btn-primary]="durationMode === 'LIMITED'" [class.btn-secondary]="durationMode !== 'LIMITED'" (click)="setDurationMode('LIMITED')">
+                X Hónapig
+              </button>
+              <button type="button" class="btn btn-sm" [class.btn-primary]="durationMode === 'PERMANENT'" [class.btn-secondary]="durationMode !== 'PERMANENT'" (click)="setDurationMode('PERMANENT')">
+                Állandó
+              </button>
+            </div>
+          </div>
+
+          <!-- Ha határozott idejű (X hónapig) -->
+          @if (durationMode === 'LIMITED') {
+            <div class="form-group" style="padding: 0.85rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-surface-elevated);">
+              <label class="form-label">Hány hónapig jön ez a bevétel?</label>
+              <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.6rem;">
+                @for (m of [1, 2, 3, 4, 5, 6, 10, 12]; track m) {
+                  <button type="button" class="btn btn-sm" [class.btn-primary]="currentIncome.durationMonths === m" [class.btn-secondary]="currentIncome.durationMonths !== m" (click)="currentIncome.durationMonths = m" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;">
+                    {{ m }} hó
+                  </button>
+                }
+              </div>
+              <input type="number" min="1" max="60" class="form-control" [(ngModel)]="currentIncome.durationMonths" placeholder="pl. 3">
+              <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.35rem; display: block;">
+                A kalkuláció a kezdő dátumtól számítva pontosan {{ currentIncome.durationMonths || 1 }} hónapig fogja beszámítani a jövőbeli egyenlegedbe.
+              </span>
+            </div>
+          }
+
+          <!-- Dátum naptár választóval -->
+          <div class="form-group">
+            <label class="form-label">Beérkezés / Kezdés Dátuma</label>
+            <input type="date" class="form-control" [(ngModel)]="currentIncome.receivedDate" (click)="$any($event.target).showPicker?.()" title="Kattints a naptár megnyitásához">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Megjegyzés (opcionális)</label>
+            <input type="text" class="form-control" [(ngModel)]="currentIncome.description" placeholder="pl. Diákmunka szerződés">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeModal()">Mégse</button>
+          <button class="btn btn-primary" (click)="saveIncome()">Mentés</button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

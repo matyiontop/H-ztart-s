@@ -1,0 +1,152 @@
+<div class="app-container">
+  <div class="page-header-flex">
+    <div>
+      <h1 class="page-title">Kiadások</h1>
+      <p class="page-subtitle">Fix költségek (lakbér, rezsi, bérlet) és napi változó kiadások (kaja, egyéb költések)</p>
+    </div>
+    <button class="btn btn-primary" (click)="openNewModal()">
+      <span>+ Új Kiadás</span>
+    </button>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="expense-summary-grid">
+    <div class="card exp-stat-card">
+      <span class="stat-lbl">Összes Havi Kiadás</span>
+      <span class="stat-val mono">{{ totalExpenseAmount | huf }}</span>
+    </div>
+    <div class="card exp-stat-card">
+      <span class="stat-lbl">Fix Költségek (Lakbér, Rezsi)</span>
+      <span class="stat-val mono">{{ totalFixedAmount | huf }}</span>
+    </div>
+    <div class="card exp-stat-card">
+      <span class="stat-lbl">Változó Kiadások (Kaja, Egyéb)</span>
+      <span class="stat-val mono">{{ totalVariableAmount | huf }}</span>
+    </div>
+  </div>
+
+  <!-- Filter Buttons -->
+  <div class="filter-row">
+    <div class="filter-buttons">
+      <button class="filter-btn" [class.active]="filterType() === 'ALL'" (click)="setFilter('ALL')">
+        MINDEN KIADÁS ({{ apiService.expenses().length }})
+      </button>
+      <button class="filter-btn" [class.active]="filterType() === 'FIXED'" (click)="setFilter('FIXED')">
+        CSAK FIX KÖLTSÉGEK
+      </button>
+      <button class="filter-btn" [class.active]="filterType() === 'VARIABLE'" (click)="setFilter('VARIABLE')">
+        CSAK VÁLTOZÓ KIADÁSOK
+      </button>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="card table-card">
+    <div class="data-table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Megnevezés</th>
+            <th>Kategória</th>
+            <th>Típus</th>
+            <th>Dátum</th>
+            <th style="text-align: right;">Összeg</th>
+            <th style="text-align: center;">Művelet</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (exp of filteredExpenses; track exp.id) {
+            <tr>
+              <td>
+                <div class="item-title-flex">
+                  <strong>{{ exp.title }}</strong>
+                </div>
+                @if (exp.description) {
+                  <span class="item-desc">{{ exp.description }}</span>
+                }
+              </td>
+              <td>
+                <span class="badge">{{ exp.categoryName || 'Kiadás' }}</span>
+              </td>
+              <td>
+                <span class="badge" [class.badge-dark]="exp.fixed">
+                  {{ exp.fixed ? 'FIX' : 'VÁLTOZÓ' }}
+                </span>
+              </td>
+              <td class="mono" style="font-size: 0.8rem;">
+                {{ exp.expenseDate }}
+              </td>
+              <td class="mono" style="text-align: right; font-weight: 800; font-size: 1.05rem;">-{{ exp.amount | huf }}</td>
+              <td style="text-align: center;">
+                <button class="btn btn-danger btn-sm" (click)="deleteExpense(exp.id)" title="Törlés">
+                  Törlés
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6" class="empty-state">
+                <p>Nincs a szűrésnek megfelelő kiadás.</p>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal: Új Kiadás -->
+  @if (isModalOpen()) {
+    <div class="modal-backdrop" (click)="closeModal()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>Új Kiadás Rögzítése</h3>
+          <button class="btn btn-secondary btn-sm" (click)="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Megnevezés *</label>
+            <input type="text" class="form-control" [(ngModel)]="currentExpense.title" placeholder="pl. Lakbér, Menza, BKK bérlet">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Összeg (Ft) *</label>
+            <input type="number" class="form-control" [(ngModel)]="currentExpense.amount" placeholder="45000">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Kategória</label>
+            <select class="form-control" [(ngModel)]="currentExpense.categoryId">
+              @for (cat of apiService.categories(); track cat.id) {
+                @if (cat.type === 'EXPENSE') {
+                  <option [value]="cat.id">{{ cat.name }} ({{ cat.fixed ? 'Fix' : 'Változó' }})</option>
+                }
+              }
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Költség jellege</label>
+            <div style="display: flex; gap: 1.5rem; margin-top: 0.35rem;">
+              <label style="display: flex; align-items: center; gap: 0.45rem; font-size: 0.85rem; font-weight: 600;">
+                <input type="radio" [value]="true" [(ngModel)]="currentExpense.fixed"> Fix Költség
+              </label>
+              <label style="display: flex; align-items: center; gap: 0.45rem; font-size: 0.85rem; font-weight: 600;">
+                <input type="radio" [value]="false" [(ngModel)]="currentExpense.fixed"> Változó Kiadás
+              </label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Dátum</label>
+            <input type="date" class="form-control" [(ngModel)]="currentExpense.expenseDate" (click)="$any($event.target).showPicker?.()" title="Kattints a naptár megnyitásához">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Megjegyzés (opcionális)</label>
+            <input type="text" class="form-control" [(ngModel)]="currentExpense.description" placeholder="pl. Havi bérlet">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeModal()">Mégse</button>
+          <button class="btn btn-primary" (click)="saveExpense()">Mentés</button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

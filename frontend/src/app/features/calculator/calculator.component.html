@@ -1,0 +1,124 @@
+<div class="app-container calculator-page">
+  <div class="page-header">
+    <h1 class="page-title">Kalkulátor</h1>
+    <p class="page-subtitle">Havi pénzügyi egyenleg és a hátralévő napokra kalkulált költési keret</p>
+  </div>
+
+  <div class="calc-grid">
+    <!-- 1. TÉNYLEGES HAVI MÉRLEG -->
+    @if (cashFlow(); as cf) {
+      <div class="card calc-card full-width">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Havi Pénzügyi Mérleg</h2>
+            <span class="card-subtitle">A rögzített bevételeid és kiadásaid alapján</span>
+          </div>
+          <span class="badge" [class.badge-dark]="cf.netMonthlySavings >= 0" [class.badge-danger]="cf.netMonthlySavings < 0">
+            {{ cf.netMonthlySavings >= 0 ? 'POZITÍV EGYENLEG' : 'HIÁNY A HÓBAN' }}
+          </span>
+        </div>
+
+        <div class="cf-stats-grid">
+          <div class="cf-stat-box">
+            <span class="cf-stat-label">Havi Összes Bevétel</span>
+            <span class="cf-stat-value mono">{{ cf.monthlyIncome | huf }}</span>
+            <span class="cf-stat-sub">Ösztöndíj, munka, támogatás</span>
+          </div>
+
+          <div class="cf-stat-box">
+            <span class="cf-stat-label">Fix Költségek (Alapkiadások)</span>
+            <span class="cf-stat-value mono">{{ cf.monthlyFixedExpenses | huf }}</span>
+            <span class="cf-stat-sub">Lakbér, rezsi, diákbérlet</span>
+          </div>
+
+          <div class="cf-stat-box">
+            <span class="cf-stat-label">Eddigi Változó Kiadások</span>
+            <span class="cf-stat-value mono">{{ cf.monthlyVariableExpenses | huf }}</span>
+            <span class="cf-stat-sub">Kaja, mindennapi vásárlás</span>
+          </div>
+
+          <div class="cf-stat-box highlight-box" [class.danger-box]="cf.netMonthlySavings < 0">
+            <span class="cf-stat-label">Hó Végi Megmaradó Egyenleg</span>
+            <span class="cf-stat-value mono" [class.text-danger]="cf.netMonthlySavings < 0">
+              {{ cf.netMonthlySavings | huf }}
+            </span>
+            <span class="cf-stat-sub">
+              {{ cf.netMonthlySavings >= 0 ? 'Szabadon felhasználható vagy megtakarítás' : 'Ennyivel haladják meg a kiadások a bevételt' }}
+            </span>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- 2. NAPI KÖLTÉSI KERET (Túlélő mutató a hónapra) -->
+    <div class="card calc-card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Napi Költési Keret</h2>
+          <span class="card-subtitle">A jelenlegi vagyonod és a hátralévő napok alapján</span>
+        </div>
+      </div>
+
+      <div class="daily-budget-card">
+        <div class="daily-top-badge">
+          <span>HÓNAPBÓL HÁTRALÉVŐ NAPOK: <strong class="mono">{{ remainingDaysInMonth }} NAP</strong></span>
+          <span class="separator">/</span>
+          <span>JELENLEGI PÉNZ: <strong class="mono">{{ (apiService.accountBalance()?.balance || 0) | huf }}</strong></span>
+        </div>
+
+        <div class="daily-main-stat">
+          <span class="daily-lbl">Napi elkölthető keret a hó végéig:</span>
+          <h3 class="daily-val mono" [class.val-danger]="dailyBudgetFromWealth <= 0">
+            {{ dailyBudgetFromWealth | huf }}/nap
+          </h3>
+          <p class="daily-desc">
+            @if (dailyBudgetFromWealth > 4000) {
+              Kényelmes keret. Ha naponta átlagosan legfeljebb {{ dailyBudgetFromWealth | huf }}-t költesz, a hónap végéig stabil marad az egyenleged.
+            } @else if (dailyBudgetFromWealth > 1500) {
+              Stabil keret. Átlagos napi étkezésre és menzára elegendő a hónap hátralévő {{ remainingDaysInMonth }} napjára.
+            } @else if (dailyBudgetFromWealth > 0) {
+              Szűkös keret. Érdemes odafigyelni a napi apró kiadásokra.
+            } @else {
+              Elfogyott a keret. A hónap hátralévő részében csak a legszükségesebb dolgokra költs.
+            }
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. GYORS MEGHATÁROZÓ: MENNYIBŐL ÉLSZ HAVONTA? -->
+    <div class="card calc-card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Gyors Tervező</h2>
+          <span class="card-subtitle">Számold ki a várható napi szabad kereted</span>
+        </div>
+      </div>
+
+      <div class="planner-form">
+        <div class="form-group">
+          <label class="form-label">Várható havi bevétel (Ft):</label>
+          <input type="number" class="form-control" [(ngModel)]="plannedIncome" placeholder="200000" step="5000">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Fix havi kiadások (Lakbér, rezsi, bérlet) (Ft):</label>
+          <input type="number" class="form-control" [(ngModel)]="plannedFixedCost" placeholder="205000" step="5000">
+        </div>
+
+        <div class="planner-result-box">
+          <div class="res-row">
+            <span>Fix költségek után megmaradó pénz:</span>
+            <strong class="mono font-lg" [class.val-danger]="plannedDiscretionary < 0">
+              {{ plannedDiscretionary | huf }}/hó
+            </strong>
+          </div>
+          <div class="res-row">
+            <span>Napi megélhetési / szabad keret:</span>
+            <strong class="mono font-lg">{{ plannedDailyAllowance | huf }}/nap</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,387 @@
+<div class="app-container dashboard-page">
+  <!-- Top Hero Header with Editorial Typography -->
+  <div class="dashboard-header">
+    <div>
+      <h1 class="page-title">Pénzügyek</h1>
+      <p class="page-subtitle">Havi bevételeid, kiadásaid és aktuális vagyoni mérleged</p>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn btn-secondary" (click)="openBalanceModal()">
+        <span>Vagyon Módosítása</span>
+      </button>
+
+      <button class="btn btn-secondary" (click)="openExpenseModal()">
+        <span>+ Kiadás</span>
+      </button>
+
+      <button class="btn btn-primary" (click)="openIncomeModal()">
+        <span>+ Bevétel</span>
+      </button>
+    </div>
+  </div>
+
+  @if (apiService.dashboardData(); as data) {
+    <!-- VAGYON ÉS HÓ VÉGI VETÍTÉS SÁV -->
+    <div class="card wealth-banner-card">
+      <div class="wealth-col">
+        <span class="meta-label">Jelenlegi Valós Vagyonod</span>
+        <h2 class="wealth-value mono">{{ (data.currentBalance || 0) | huf }}</h2>
+        <div class="wealth-breakdown">
+          <span>Számlán: <strong class="mono">{{ (data.bankAmount || 0) | huf }}</strong></span>
+          <span class="separator">/</span>
+          <span>Készpénz: <strong class="mono">{{ (data.cashAmount || 0) | huf }}</strong></span>
+        </div>
+      </div>
+
+      <div class="wealth-divider"></div>
+
+      <div class="wealth-col">
+        <span class="meta-label">Várható Hó Végi Vagyon</span>
+        <h2 class="wealth-value mono" [class.val-danger]="(data.projectedEndOfMonthBalance || 0) < 0">
+          {{ (data.projectedEndOfMonthBalance || 0) | huf }}
+        </h2>
+        <div class="wealth-breakdown">
+          <span>Havi mérleg hatása: <strong class="mono" [class.val-danger]="data.netMonthlySavings < 0">{{ data.netMonthlySavings > 0 ? '+' : '' }}{{ data.netMonthlySavings | huf }}</strong></span>
+        </div>
+      </div>
+
+      <div class="wealth-action">
+        <button class="btn btn-secondary btn-sm" (click)="openBalanceModal()">
+          Frissítés
+        </button>
+      </div>
+    </div>
+
+    <!-- 4 FŐ PÉNZÜGYI MUTATÓ -->
+    <div class="kpi-grid">
+      <!-- 1. Havi Összes Bevétel -->
+      <div class="card kpi-card">
+        <span class="meta-label">Havi Összes Bevétel</span>
+        <h3 class="kpi-value mono">{{ data.totalMonthlyIncome | huf }}</h3>
+        <span class="kpi-note">Ösztöndíj, munka, támogatás</span>
+      </div>
+
+      <!-- 2. Havi Fix Kiadások -->
+      <div class="card kpi-card">
+        <span class="meta-label">Fix Költségek</span>
+        <h3 class="kpi-value mono">{{ data.totalMonthlyFixedExpenses | huf }}</h3>
+        <span class="kpi-note">Lakbér, rezsi, bérlet</span>
+      </div>
+
+      <!-- 3. Havi Változó Kiadások -->
+      <div class="card kpi-card">
+        <span class="meta-label">Változó Kiadások</span>
+        <h3 class="kpi-value mono">{{ data.totalMonthlyVariableExpenses | huf }}</h3>
+        <span class="kpi-note">Kaja, mindennapi költések</span>
+      </div>
+
+      <!-- 4. Hó Végi Megmaradó Egyenleg -->
+      <div class="card kpi-card" [class.kpi-negative]="data.netMonthlySavings < 0">
+        <span class="meta-label">Havi Egyenleg</span>
+        <h3 class="kpi-value mono" [class.val-danger]="data.netMonthlySavings < 0">
+          {{ data.netMonthlySavings | huf }}
+        </h3>
+        <span class="kpi-note">{{ data.netMonthlySavings >= 0 ? 'Megtakarítható összeg' : 'Havi hiány / túllépés' }}</span>
+      </div>
+    </div>
+
+    <!-- KALKULÁLT VS. VALÓS EGYENLEG IDŐVONAL DIAGRAM (A FELHASZNÁLÓI KÉRÉS ALAPJÁN) -->
+    <div class="card trajectory-card">
+      <div class="card-header">
+        <div>
+          <h4 class="card-title">Kalkulált vs. Valós Egyenleg Alakulása</h4>
+          <span class="card-subtitle-text">Tervezett pénzügyi pálya és a tényleges számlaegyenleg időbeli követése</span>
+        </div>
+        <div class="trajectory-legend-tags">
+          <span class="traj-tag tag-purple">● Kalkulált egyenleg</span>
+          <span class="traj-tag tag-green">● Valós egyenleg</span>
+        </div>
+      </div>
+
+      <div class="trajectory-chart-wrap">
+        <canvas #trajectoryCanvas></canvas>
+      </div>
+    </div>
+
+    <!-- KÖLTSÉGMEGOSZLÁS ÉS KATEGÓRIÁK -->
+    <div class="main-split-grid">
+      <!-- Kördiagram -->
+      <div class="card">
+        <div class="card-header">
+          <h4 class="card-title">Kiadások Megoszlása</h4>
+          <span class="badge badge-dark">{{ data.totalMonthlyExpenses | huf }} Összesen</span>
+        </div>
+        @if (data.expenseCategories && data.expenseCategories.length > 0 && data.totalMonthlyExpenses > 0) {
+          <div class="chart-container">
+            <canvas #donutCanvas></canvas>
+          </div>
+        } @else {
+          <div class="empty-box">
+            <p>Még nincs rögzített kiadás.</p>
+          </div>
+        }
+      </div>
+
+      <!-- Kategóriák Listája -->
+      <div class="card">
+        <div class="card-header">
+          <h4 class="card-title">Kategória Tételek</h4>
+          <a routerLink="/expenses" class="btn btn-secondary btn-sm">Minden Kiadás</a>
+        </div>
+        <div class="category-list">
+          @for (cat of data.expenseCategories; track cat.categoryId) {
+            <div class="category-row">
+              <div class="cat-left">
+                <span class="cat-index">0{{ $index + 1 }}</span>
+                <span class="cat-name">{{ cat.categoryName }}</span>
+              </div>
+              <div class="cat-right">
+                <span class="cat-amount mono">{{ cat.totalAmount | huf }}</span>
+                <span class="cat-pct mono">{{ cat.percentage }}%</span>
+              </div>
+            </div>
+          } @empty {
+            <p class="empty-box">Nincs rögzített kategória.</p>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- TRANZAKCIÓK TÁBLÁZATAI -->
+    <div class="transactions-grid">
+      <!-- Legutóbbi Bevételek -->
+      <div class="card">
+        <div class="card-header">
+          <h4 class="card-title">Legutóbbi Bevételek</h4>
+          <a routerLink="/incomes" class="btn btn-secondary btn-sm">Összes</a>
+        </div>
+        <div class="trans-table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Megnevezés</th>
+                <th>Kategória</th>
+                <th>Dátum</th>
+                <th style="text-align: right;">Összeg</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (inc of data.recentIncomes; track inc.id) {
+                <tr>
+                  <td style="font-weight: 700;">{{ inc.title }}</td>
+                  <td style="color: var(--text-secondary);">{{ inc.categoryName || 'Általános' }}</td>
+                  <td class="mono" style="font-size: 0.8rem;">{{ inc.receivedDate }}</td>
+                  <td class="mono" style="text-align: right; font-weight: 700;">+{{ inc.amount | huf }}</td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="4" class="empty-td">Nincs még rögzített bevétel.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Legutóbbi Kiadások -->
+      <div class="card">
+        <div class="card-header">
+          <h4 class="card-title">Legutóbbi Kiadások</h4>
+          <a routerLink="/expenses" class="btn btn-secondary btn-sm">Összes</a>
+        </div>
+        <div class="trans-table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Megnevezés</th>
+                <th>Kategória</th>
+                <th>Típus</th>
+                <th style="text-align: right;">Összeg</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (exp of data.recentExpenses; track exp.id) {
+                <tr>
+                  <td style="font-weight: 700;">{{ exp.title }}</td>
+                  <td style="color: var(--text-secondary);">{{ exp.categoryName || 'Kiadás' }}</td>
+                  <td>
+                    <span class="badge" [class.badge-dark]="exp.fixed">{{ exp.fixed ? 'FIX' : 'VÁLTOZÓ' }}</span>
+                  </td>
+                  <td class="mono" style="text-align: right; font-weight: 700;">-{{ exp.amount | huf }}</td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="4" class="empty-td">Nincs még rögzített kiadás.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL: VAGYON FRISSÍTÉSE -->
+  @if (isBalanceModalOpen()) {
+    <div class="modal-backdrop" (click)="closeBalanceModal()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>Vagyon és Egyenleg Beállítása</h3>
+          <button class="btn btn-secondary btn-sm" (click)="closeBalanceModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Bankszámlán lévő összeg (Ft)</label>
+            <input type="number" class="form-control" [(ngModel)]="editBalance.bankAmount" (ngModelChange)="onSubBalanceChange()" placeholder="140000">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Készpénzben lévő összeg (Ft)</label>
+            <input type="number" class="form-control" [(ngModel)]="editBalance.cashAmount" (ngModelChange)="onSubBalanceChange()" placeholder="10000">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Összes Jelenlegi Vagyon (Ft)</label>
+            <input type="number" class="form-control" [(ngModel)]="editBalance.balance" placeholder="150000" style="font-weight: 800; font-size: 1.15rem;">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Megjegyzés (opcionális)</label>
+            <input type="text" class="form-control" [(ngModel)]="editBalance.note" placeholder="pl. Hó eleji állás">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeBalanceModal()">Mégse</button>
+          <button class="btn btn-primary" (click)="saveBalance()">Mentés az Adatbázisba</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL: ÚJ BEVÉTEL -->
+  @if (isIncomeModalOpen()) {
+    <div class="modal-backdrop" (click)="closeIncomeModal()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>Új Bevétel Rögzítése</h3>
+          <button class="btn btn-secondary btn-sm" (click)="closeIncomeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Megnevezés *</label>
+            <input type="text" class="form-control" [(ngModel)]="newIncome.title" placeholder="pl. Diákmunka, Támogatás">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Összeg (Ft) *</label>
+            <input type="number" class="form-control" [(ngModel)]="newIncome.amount" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Kategória</label>
+            <select class="form-control" [(ngModel)]="newIncome.categoryId">
+              @for (cat of apiService.categories(); track cat.id) {
+                @if (cat.type === 'INCOME') {
+                  <option [value]="cat.id">{{ cat.name }}</option>
+                }
+              }
+            </select>
+          </div>
+
+          <!-- Időtartam Választó -->
+          <div class="form-group">
+            <label class="form-label">Bevétel Időtartama</label>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-top: 0.25rem;">
+              <button type="button" class="btn btn-sm" [class.btn-primary]="incomeDurationMode === 'ONETIME'" [class.btn-secondary]="incomeDurationMode !== 'ONETIME'" (click)="setIncomeDurationMode('ONETIME')">
+                Egyszeri (1x)
+              </button>
+              <button type="button" class="btn btn-sm" [class.btn-primary]="incomeDurationMode === 'LIMITED'" [class.btn-secondary]="incomeDurationMode !== 'LIMITED'" (click)="setIncomeDurationMode('LIMITED')">
+                X Hónapig
+              </button>
+              <button type="button" class="btn btn-sm" [class.btn-primary]="incomeDurationMode === 'PERMANENT'" [class.btn-secondary]="incomeDurationMode !== 'PERMANENT'" (click)="setIncomeDurationMode('PERMANENT')">
+                Állandó
+              </button>
+            </div>
+          </div>
+
+          <!-- Ha határozott idejű (X hónapig) -->
+          @if (incomeDurationMode === 'LIMITED') {
+            <div class="form-group" style="padding: 0.85rem; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-surface-elevated);">
+              <label class="form-label">Hány hónapig érkezik ez a bevétel?</label>
+              <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.6rem;">
+                @for (m of [1, 2, 3, 4, 5, 6, 10, 12]; track m) {
+                  <button type="button" class="btn btn-sm" [class.btn-primary]="newIncome.durationMonths === m" [class.btn-secondary]="newIncome.durationMonths !== m" (click)="newIncome.durationMonths = m" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;">
+                    {{ m }} hó
+                  </button>
+                }
+              </div>
+              <input type="number" min="1" max="60" class="form-control" [(ngModel)]="newIncome.durationMonths" placeholder="pl. 3">
+              <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.35rem; display: block;">
+                A kalkuláció a kezdő dátumtól számítva pontosan {{ newIncome.durationMonths || 1 }} hónapig fogja beszámítani a jövőbeli egyenlegedbe.
+              </span>
+            </div>
+          }
+
+          <div class="form-group">
+            <label class="form-label">Dátum / Kezdő Dátum</label>
+            <input type="date" class="form-control" [(ngModel)]="newIncome.receivedDate" (click)="$any($event.target).showPicker?.()" title="Kattints a naptár megnyitásához">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeIncomeModal()">Mégse</button>
+          <button class="btn btn-primary" (click)="saveIncome()">Mentés</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL: ÚJ KIADÁS -->
+  @if (isExpenseModalOpen()) {
+    <div class="modal-backdrop" (click)="closeExpenseModal()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>Új Kiadás Rögzítése</h3>
+          <button class="btn btn-secondary btn-sm" (click)="closeExpenseModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Megnevezés *</label>
+            <input type="text" class="form-control" [(ngModel)]="newExpense.title" placeholder="pl. Lakbér, Menza, BKK bérlet">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Összeg (Ft) *</label>
+            <input type="number" class="form-control" [(ngModel)]="newExpense.amount" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Kategória</label>
+            <select class="form-control" [(ngModel)]="newExpense.categoryId">
+              @for (cat of apiService.categories(); track cat.id) {
+                @if (cat.type === 'EXPENSE') {
+                  <option [value]="cat.id">{{ cat.name }} ({{ cat.fixed ? 'Fix' : 'Változó' }})</option>
+                }
+              }
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Típus</label>
+            <div style="display: flex; gap: 1.5rem; margin-top: 0.35rem;">
+              <label style="display: flex; align-items: center; gap: 0.45rem; font-size: 0.85rem; font-weight: 600;">
+                <input type="radio" [value]="true" [(ngModel)]="newExpense.fixed"> Fix Költség
+              </label>
+              <label style="display: flex; align-items: center; gap: 0.45rem; font-size: 0.85rem; font-weight: 600;">
+                <input type="radio" [value]="false" [(ngModel)]="newExpense.fixed"> Változó Kiadás
+              </label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Dátum</label>
+            <input type="date" class="form-control" [(ngModel)]="newExpense.expenseDate" (click)="$any($event.target).showPicker?.()" title="Kattints a naptár megnyitásához">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeExpenseModal()">Mégse</button>
+          <button class="btn btn-primary" (click)="saveExpense()">Mentés</button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

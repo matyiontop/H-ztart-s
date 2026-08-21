@@ -1,0 +1,177 @@
+<div class="app-container simulator-page">
+  <div class="page-header">
+    <h1 class="page-title">Szimuláció</h1>
+    <p class="page-subtitle">Pénzügyi forgatókönyv-elemző fizetésváltozás vagy költségnövekedés esetén</p>
+  </div>
+
+  <!-- Gyors Sablonok (Presets) -->
+  <div class="presets-container">
+    <span class="presets-label">Gyakori forgatókönyvek:</span>
+    <div class="presets-scroll">
+      @for (preset of presets; track preset.name) {
+        <button class="preset-pill" (click)="applyPreset(preset.req)">
+          {{ preset.name }}
+        </button>
+      }
+      <button class="preset-pill reset-pill" (click)="resetSimulation()">
+        Alaphelyzet
+      </button>
+    </div>
+  </div>
+
+  <div class="sim-layout">
+    <!-- BAL OLDAL: CSÚSZKÁK & BEÁLLÍTÁSOK -->
+    <div class="card sim-controls-card">
+      <div class="card-header">
+        <h2 class="card-title">Paraméterek Beállítása</h2>
+        <button class="btn btn-secondary btn-sm" (click)="resetSimulation()">Visszaállítás</button>
+      </div>
+
+      <div class="controls-list">
+        <!-- 1. Jövedelem változás -->
+        <div class="control-item">
+          <div class="control-header">
+            <label class="control-label">Bevétel / Támogatás Változása</label>
+            <span class="control-val mono">
+              {{ simulationRequest.incomeChangePercent > 0 ? '+' : '' }}{{ simulationRequest.incomeChangePercent }}%
+            </span>
+          </div>
+          <input type="range" min="-50" max="50" step="5" [(ngModel)]="simulationRequest.incomeChangePercent" (input)="recalculate()">
+          <span class="control-hint">pl. Diákmunka óraszám növekedés, ösztöndíj változás</span>
+        </div>
+
+        <!-- 2. Fix rezsi és lakhatás változás -->
+        <div class="control-item">
+          <div class="control-header">
+            <label class="control-label">Fix Költségek Változása (Lakbér, Rezsi)</label>
+            <span class="control-val mono">
+              {{ simulationRequest.fixedExpenseChangePercent > 0 ? '+' : '' }}{{ simulationRequest.fixedExpenseChangePercent }}%
+            </span>
+          </div>
+          <input type="range" min="-30" max="60" step="5" [(ngModel)]="simulationRequest.fixedExpenseChangePercent" (input)="recalculate()">
+          <span class="control-hint">pl. Albérletdíj emelés, fűtés/rezsi drágulás</span>
+        </div>
+
+        <!-- 3. Napi változó kiadások változás -->
+        <div class="control-item">
+          <div class="control-header">
+            <label class="control-label">Változó Kiadások Változása (Kaja, Szórakozás)</label>
+            <span class="control-val mono">
+              {{ simulationRequest.variableExpenseChangePercent > 0 ? '+' : '' }}{{ simulationRequest.variableExpenseChangePercent }}%
+            </span>
+          </div>
+          <input type="range" min="-40" max="40" step="5" [(ngModel)]="simulationRequest.variableExpenseChangePercent" (input)="recalculate()">
+          <span class="control-hint">pl. Spórolás menzán, kevesebb rendelés</span>
+        </div>
+
+        <!-- 4. Új fix havi kiadás -->
+        <div class="control-item">
+          <div class="control-header">
+            <label class="control-label">Új havi fix tétel</label>
+            <span class="control-val mono">{{ simulationRequest.additionalMonthlyExpense | huf }}</span>
+          </div>
+          <input type="range" min="0" max="150000" step="5000" [(ngModel)]="simulationRequest.additionalMonthlyExpense" (input)="recalculate()">
+        </div>
+
+        <!-- 5. Új havi fix bevétel -->
+        <div class="control-item">
+          <div class="control-header">
+            <label class="control-label">Új havi kiegészítő jövedelem</label>
+            <span class="control-val mono">{{ simulationRequest.additionalMonthlyIncome | huf }}</span>
+          </div>
+          <input type="range" min="0" max="250000" step="10000" [(ngModel)]="simulationRequest.additionalMonthlyIncome" (input)="recalculate()">
+        </div>
+
+        <!-- 6. Egyszeri nagy kiadás -->
+        <div class="control-item">
+          <div class="control-header">
+            <label class="control-label">Egyszeri váratlan kiadás</label>
+            <span class="control-val mono">{{ simulationRequest.oneTimeExpense | huf }}</span>
+          </div>
+          <input type="range" min="0" max="600000" step="20000" [(ngModel)]="simulationRequest.oneTimeExpense" (input)="recalculate()">
+          <span class="control-hint">pl. Laptop javítás, kaució, orvosi költség</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- JOBB OLDAL: SZIMULÁLT EREDMÉNYEK & HATÁSELEMZÉS -->
+    @if (simulationResult(); as res) {
+      <div class="sim-results-column">
+        <!-- Eredmény összefoglaló kártya -->
+        <div class="card outcome-card">
+          <div class="outcome-header">
+            <div>
+              <span class="meta-label">{{ res.positiveImpact ? 'POZITÍV HATÁS' : 'KOCKÁZAT / NÖVEKVŐ TEHER' }}</span>
+              <h3 class="outcome-title">{{ res.positiveImpact ? 'Kedvező Forgatókönyv' : 'Pénzügyi Teher Növekedés' }}</h3>
+              <p class="outcome-desc">{{ res.outcomeMessage }}</p>
+            </div>
+          </div>
+
+          <div class="annual-impact-badge">
+            <span class="meta-label">Éves Hatás a Kasszára:</span>
+            <span class="annual-impact-val mono" [class.val-danger]="!res.positiveImpact">
+              {{ res.annualSavingsImpact > 0 ? '+' : '' }}{{ res.annualSavingsImpact | huf }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Összehasonlító Táblázat: Jelenlegi vs. Szimulált -->
+        <div class="card comparison-card">
+          <h3 class="card-title">Jelenlegi állapot vs. Szimulált állapot</h3>
+
+          <div class="comp-table">
+            <!-- Header -->
+            <div class="comp-row comp-header-row">
+              <span>Mutató</span>
+              <span>Jelenlegi</span>
+              <span>Szimulált</span>
+              <span>Különbség</span>
+            </div>
+
+            <!-- Havi Bevétel -->
+            <div class="comp-row">
+              <span class="comp-label">Havi Összbevétel</span>
+              <span class="mono">{{ res.baselineIncome | huf }}</span>
+              <span class="mono fw-bold">{{ res.simulatedIncome | huf }}</span>
+              <span class="mono delta-val">
+                {{ res.incomeDifference > 0 ? '+' : '' }}{{ res.incomeDifference | huf }}
+              </span>
+            </div>
+
+            <!-- Havi Kiadás -->
+            <div class="comp-row">
+              <span class="comp-label">Havi Összkiadás</span>
+              <span class="mono">{{ res.baselineExpenses | huf }}</span>
+              <span class="mono fw-bold">{{ res.simulatedExpenses | huf }}</span>
+              <span class="mono delta-val">
+                {{ res.expenseDifference > 0 ? '+' : '' }}{{ res.expenseDifference | huf }}
+              </span>
+            </div>
+
+            <!-- Nettó Megtakarítás -->
+            <div class="comp-row highlight-comp-row">
+              <span class="comp-label">Nettó Havi Egyenleg</span>
+              <span class="mono">{{ res.baselineSavings | huf }}</span>
+              <span class="mono fw-bold" [class.val-danger]="res.simulatedSavings < 0">
+                {{ res.simulatedSavings | huf }}
+              </span>
+              <span class="mono delta-val">
+                {{ res.savingsDifference > 0 ? '+' : '' }}{{ res.savingsDifference | huf }}/hó
+              </span>
+            </div>
+
+            <!-- Megtakarítási Ráta -->
+            <div class="comp-row">
+              <span class="comp-label">Megtakarítási Ráta</span>
+              <span class="mono">{{ res.baselineSavingsRate }}%</span>
+              <span class="mono fw-bold">{{ res.simulatedSavingsRate }}%</span>
+              <span class="mono delta-val">
+                {{ (res.simulatedSavingsRate - res.baselineSavingsRate) > 0 ? '+' : '' }}{{ (res.simulatedSavingsRate - res.baselineSavingsRate) | number:'1.1-1' }}%
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+</div>

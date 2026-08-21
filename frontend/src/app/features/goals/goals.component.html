@@ -1,0 +1,163 @@
+<div class="app-container goals-page">
+  <div class="page-header-flex">
+    <div>
+      <h1 class="page-title">Megtakarítási Célok</h1>
+      <p class="page-subtitle">Vésztartalék, lakáscélok, utazás és egyéb pénzügyi mérföldkövek</p>
+    </div>
+    <button class="btn btn-primary" (click)="openGoalModal()">
+      <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      <span>Új Cél Kitűzése</span>
+    </button>
+  </div>
+
+  <!-- Summary Card -->
+  <div class="card goals-summary-card">
+    <div class="summary-top">
+      <div>
+        <span class="summary-lbl">Összesített Megtakarítási Állapot:</span>
+        <h2 class="summary-val mono text-success">{{ totalSaved | huf }} <span class="text-muted">/ {{ totalTarget | huf }}</span></h2>
+      </div>
+      <span class="badge badge-success font-lg">{{ overallProgress }}% Teljesítve</span>
+    </div>
+    <div class="progress-bar-bg-lg">
+      <div class="progress-bar-fill" [style.width.%]="overallProgress" style="background: linear-gradient(90deg, var(--accent-primary) 0%, var(--success) 100%);"></div>
+    </div>
+  </div>
+
+  <!-- Goals Grid -->
+  <div class="goals-grid">
+    @for (goal of apiService.goals(); track goal.id) {
+      <div class="card goal-card">
+        <div class="goal-header">
+          <div class="goal-icon-badge" [style.background-color]="goal.color || '#10b981'">
+            <svg viewBox="0 0 24 24" width="20" height="20" stroke="#ffffff" stroke-width="2.5" fill="none"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
+          </div>
+          <div class="goal-info">
+            <h3 class="goal-name">{{ goal.name }}</h3>
+            @if (goal.notes) {
+              <span class="goal-notes">{{ goal.notes }}</span>
+            }
+          </div>
+          <button class="btn btn-danger btn-sm icon-only" (click)="deleteGoal(goal.id)" title="Cél törlése">✕</button>
+        </div>
+
+        <div class="goal-amounts-row">
+          <div>
+            <span class="amt-lbl">Gyűjtve:</span>
+            <span class="amt-val mono text-success">{{ goal.currentAmount | huf }}</span>
+          </div>
+          <div class="text-right">
+            <span class="amt-lbl">Célösszeg:</span>
+            <span class="amt-val mono">{{ goal.targetAmount | huf }}</span>
+          </div>
+        </div>
+
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" 
+               [style.width.%]="goal.progressPercentage || 0"
+               [style.background-color]="goal.color || 'var(--success)'">
+          </div>
+        </div>
+
+        <div class="goal-meta-grid">
+          <div class="meta-item">
+            <span class="meta-lbl">Haladás:</span>
+            <span class="meta-val font-bold">{{ goal.progressPercentage || 0 }}%</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-lbl">Hátralévő összeg:</span>
+            <span class="meta-val mono">{{ goal.remainingAmount | huf }}</span>
+          </div>
+          @if (goal.targetDate) {
+            <div class="meta-item">
+              <span class="meta-lbl">Határidő:</span>
+              <span class="meta-val">{{ goal.targetDate }}</span>
+            </div>
+          }
+          @if (goal.requiredMonthlySavings && goal.requiredMonthlySavings > 0) {
+            <div class="meta-item">
+              <span class="meta-lbl">Szükséges havi befizetés:</span>
+              <span class="meta-val mono text-warning font-bold">{{ goal.requiredMonthlySavings | huf }}/hó</span>
+            </div>
+          }
+        </div>
+
+        <div class="goal-actions">
+          <button class="btn btn-success btn-sm btn-full" (click)="openDepositModal(goal.id)">
+            + Összeg Befizetése a Célhoz
+          </button>
+        </div>
+      </div>
+    } @empty {
+      <div class="card empty-goals-card">
+        <p>Még nincsenek aktív megtakarítási céljaid. Tűzz ki egyet a fenti gombra kattintva!</p>
+      </div>
+    }
+  </div>
+
+  <!-- Modal: Új Cél -->
+  @if (isGoalModalOpen()) {
+    <div class="modal-backdrop" (click)="closeGoalModal()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>Új Megtakarítási Cél</h3>
+          <button class="btn btn-secondary btn-sm" (click)="closeGoalModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Cél Megnevezése *</label>
+            <input type="text" class="form-control" [(ngModel)]="newGoal.name" placeholder="pl. Lakásfelújítás, Új autó, Vésztartalék">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Célösszeg (Ft) *</label>
+            <input type="number" class="form-control" [(ngModel)]="newGoal.targetAmount" placeholder="1500000">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Kezdő összeg (Ft)</label>
+            <input type="number" class="form-control" [(ngModel)]="newGoal.currentAmount" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Céldátum</label>
+            <input type="date" class="form-control" [(ngModel)]="newGoal.targetDate">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Megjegyzés</label>
+            <input type="text" class="form-control" [(ngModel)]="newGoal.notes" placeholder="Rövid leírás">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeGoalModal()">Mégse</button>
+          <button class="btn btn-primary" (click)="saveGoal()">Mentés</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Modal: Befizetés -->
+  @if (isDepositModalOpen()) {
+    <div class="modal-backdrop" (click)="closeDepositModal()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>Összeg Befizetése a Célhoz</h3>
+          <button class="btn btn-secondary btn-sm" (click)="closeDepositModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Befizetendő összeg (Ft)</label>
+            <input type="number" class="form-control" [(ngModel)]="depositAmount" placeholder="25000">
+          </div>
+          <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+            <button class="btn btn-secondary btn-sm" (click)="depositAmount = 10000">+10 000 Ft</button>
+            <button class="btn btn-secondary btn-sm" (click)="depositAmount = 25000">+25 000 Ft</button>
+            <button class="btn btn-secondary btn-sm" (click)="depositAmount = 50000">+50 000 Ft</button>
+            <button class="btn btn-secondary btn-sm" (click)="depositAmount = 100000">+100 000 Ft</button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeDepositModal()">Mégse</button>
+          <button class="btn btn-success" (click)="saveDeposit()">Befizetés Jóváírása</button>
+        </div>
+      </div>
+    </div>
+  }
+</div>
